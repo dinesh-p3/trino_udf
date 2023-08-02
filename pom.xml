@@ -40,18 +40,18 @@
             <version>364</version>
             <scope>test</scope>
         </dependency>
-  <!--      <dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.12</version>
             <scope>test</scope>
-        </dependency>-->
-<!--        <dependency>
+        </dependency>
+        <dependency>
             <groupId>org.apache.maven.surefire</groupId>
             <artifactId>surefire-junit-platform</artifactId>
             <version>3.0.0-M5</version>
             <scope>test</scope>
-        </dependency>-->
+        </dependency>
     </dependencies>
     <!-- Skipping git plugin -->
     <build>
@@ -63,7 +63,7 @@
                     <skip>true</skip>
                 </configuration>
             </plugin>
-           <!-- <plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>3.2.0</version>
@@ -74,8 +74,8 @@
                         </manifest>
                     </archive>
                 </configuration>
-            </plugin>-->
-           <!-- <plugin>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0-M5</version>
@@ -86,7 +86,7 @@
                         <version>3.0.0-M5</version>
                     </dependency>
                 </dependencies>
-            </plugin>-->
+            </plugin>
         </plugins>
     </build>
 </project>
