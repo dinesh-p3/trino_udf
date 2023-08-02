@@ -30,9 +30,11 @@ import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.spec.KeySpec;
-import java.sql.Date;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 
 import static io.airlift.slice.Slices.utf8Slice;
@@ -62,22 +64,27 @@ public class EncryptDecryptFunction
 
     public static String encryptString(String strToEncrypt)
     {
-        String encryptedStr = null;
-        try {
-            IvParameterSpec ivspec = new IvParameterSpec(IV);
-            SecretKeyFactory factory = SecretKeyFactory.getInstance(SECRET_KEY_ALGO);
-            KeySpec spec =
-                    new PBEKeySpec(
-                            SECRET_KEY.toCharArray(), SALT.getBytes(StandardCharsets.UTF_8), ITERATION_COUNT, KEY_LENGTH);
-            SecretKey tmp = factory.generateSecret(spec);
-            SecretKeySpec secretKeySpec = new SecretKeySpec(tmp.getEncoded(), AES);
-            Cipher cipher = Cipher.getInstance(PADDING);
-            cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, ivspec);
-            encryptedStr = Base64.getEncoder().encodeToString(cipher.doFinal(strToEncrypt.getBytes(StandardCharsets.UTF_8)));
+        String encryptedStr = "";
+        if (strToEncrypt != null && !strToEncrypt.isBlank()) {
+            try {
+                IvParameterSpec ivspec = new IvParameterSpec(IV);
+                SecretKeyFactory factory = SecretKeyFactory.getInstance(SECRET_KEY_ALGO);
+                KeySpec spec =
+                        new PBEKeySpec(
+                                SECRET_KEY.toCharArray(), SALT.getBytes(StandardCharsets.UTF_8), ITERATION_COUNT, KEY_LENGTH);
+                SecretKey tmp = factory.generateSecret(spec);
+                SecretKeySpec secretKeySpec = new SecretKeySpec(tmp.getEncoded(), AES);
+                Cipher cipher = Cipher.getInstance(PADDING);
+                cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, ivspec);
+                encryptedStr = Base64.getEncoder().encodeToString(cipher.doFinal(strToEncrypt.getBytes(StandardCharsets.UTF_8)));
+            }
+            catch (Exception e) {
+                System.out.println("Error occurred while value encrypting :: " + e.getMessage());
+                e.printStackTrace();
+            }
         }
-        catch (Exception e) {
-            System.out.println("Error occurred while value encrypting :: " + e.getMessage());
-            e.printStackTrace();
+        else {
+            throw new NullPointerException("Given value is null");
         }
         return encryptedStr;
     }
@@ -93,22 +100,27 @@ public class EncryptDecryptFunction
     public static String decryptString(@SqlType(StandardTypes.VARCHAR) String strToDecrypt)
     {
         String decryptedStr = null;
-        try {
-            IvParameterSpec ivspec = new IvParameterSpec(IV);
-            SecretKeyFactory factory = SecretKeyFactory.getInstance(SECRET_KEY_ALGO);
-            KeySpec spec =
-                    new PBEKeySpec(
-                            SECRET_KEY.toCharArray(), SALT.getBytes(StandardCharsets.UTF_8), ITERATION_COUNT, KEY_LENGTH);
-            SecretKey tmp = factory.generateSecret(spec);
-            SecretKeySpec secretKeySpec = new SecretKeySpec(tmp.getEncoded(), AES);
-            Cipher cipher = Cipher.getInstance(PADDING);
-            cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivspec);
-            byte[] bytes = cipher.doFinal(Base64.getDecoder().decode(strToDecrypt.getBytes(StandardCharsets.UTF_8)));
-            decryptedStr = new String(bytes, StandardCharsets.UTF_8);
+        if (strToDecrypt != null && !strToDecrypt.isBlank()) {
+            try {
+                IvParameterSpec ivspec = new IvParameterSpec(IV);
+                SecretKeyFactory factory = SecretKeyFactory.getInstance(SECRET_KEY_ALGO);
+                KeySpec spec =
+                        new PBEKeySpec(
+                                SECRET_KEY.toCharArray(), SALT.getBytes(StandardCharsets.UTF_8), ITERATION_COUNT, KEY_LENGTH);
+                SecretKey tmp = factory.generateSecret(spec);
+                SecretKeySpec secretKeySpec = new SecretKeySpec(tmp.getEncoded(), AES);
+                Cipher cipher = Cipher.getInstance(PADDING);
+                cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivspec);
+                byte[] bytes = cipher.doFinal(Base64.getDecoder().decode(strToDecrypt.getBytes(StandardCharsets.UTF_8)));
+                decryptedStr = new String(bytes, StandardCharsets.UTF_8);
+            }
+            catch (Exception e) {
+                System.out.println("Error occurred while value decrypting:: " + e.getMessage());
+                e.printStackTrace();
+            }
         }
-        catch (Exception e) {
-            System.out.println("Error occurred while value decrypting:: " + e.getMessage());
-            e.printStackTrace();
+        else {
+            throw new NullPointerException("Given value is null");
         }
         return decryptedStr;
     }
@@ -152,10 +164,10 @@ public class EncryptDecryptFunction
     @SqlType(StandardTypes.VARCHAR)
     public static Slice encrypt_bigint(@SqlNullable @SqlType(StandardTypes.BIGINT) Long value)
     {
-        return utf8Slice(EncryptDecryptFunction.encryptBigint((value)));
+        return utf8Slice(encryptBigint(String.valueOf(value)));
     }
 
-    public static String encryptBigint(Long valueToEncrypt)
+    public static String encryptBigint(String valueToEncrypt)
     {
         return encryptString(String.valueOf(valueToEncrypt));
     }
@@ -280,9 +292,9 @@ public class EncryptDecryptFunction
     @ScalarFunction("encrypt_date")
     @Description("Encryption for date data type")
     @SqlType(StandardTypes.VARCHAR)
-    public static Slice encrypt_date(@SqlType(StandardTypes.DATE) LocalDate dateValue)
+    public static Slice encrypt_date(@SqlNullable @SqlType(StandardTypes.DATE) Long date)
     {
-        return utf8Slice(encryptDate(dateValue.toString()));
+        return utf8Slice(encryptDate(date.toString()));
     }
 
     public static String encryptDate(String dateToEncrypt)
@@ -293,67 +305,92 @@ public class EncryptDecryptFunction
     @ScalarFunction("decrypt_date")
     @Description("Decryption for date data type")
     @SqlType(StandardTypes.DATE)
-    public static Date decrypt_date(@SqlType(StandardTypes.VARCHAR) Slice value)
+    public static long decrypt_date(@SqlType(StandardTypes.VARCHAR) Slice value)
     {
         return decryptDate(value.toStringUtf8());
     }
 
-/*    public static Date decryptDate(String strToDecrypt)
+    public static long decryptDate(String strToDecrypt)
     {
-        Date date;
+        LocalDate date;
         try {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-            date = new SimpleDateFormat("yyyy-MM-dd").parse(LocalDate.parse(decryptString(strToDecrypt)).toString());
-            System.out.println(date);
+            Long epochSecond = Long.valueOf(decryptString(strToDecrypt));
+            date = LocalDate.ofInstant(Instant.ofEpochSecond(epochSecond), ZoneId.systemDefault());
         }
         catch (Exception e) {
             throw new RuntimeException(e);
         }
-        return date;
-    }*/
-
-    public static Date decryptDate(String strToDecrypt)
-    {
-        Date date;
-        try {
-            date = Date.valueOf(decryptString(strToDecrypt));
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return date;
+        return date.atStartOfDay(ZoneId.systemDefault()).toEpochSecond();
     }
 
-    @ScalarFunction("encrypt_datetime")
-    @Description("Encryption for datetime data type")
+    @ScalarFunction("encrypt_timestamp")
+    @Description("Encryption for timestamp data type")
     @SqlType(StandardTypes.VARCHAR)
-    public static Slice encrypt_datetime(@SqlType(StandardTypes.VARCHAR) Slice value)
+    public static Slice encrypt_timestamp(@SqlNullable @SqlType(StandardTypes.TIMESTAMP) Long value)
     {
-        return utf8Slice(encryptDateTime(value.toStringUtf8()));
+        System.out.println("TIMESTAMP value :: " + value);
+        return utf8Slice(encryptDateTime(value.toString()));
     }
 
-    public static String encryptDateTime(@SqlType(StandardTypes.VARCHAR) String value)
+    public static String encryptDateTime(String value)
     {
         return encryptString(value);
     }
 
-    @ScalarFunction("decrypt_datetime")
-    @Description("Decryption for datetime data type")
+    @ScalarFunction("decrypt_timestamp")
+    @Description("Decryption for timestamp data type")
     @SqlType(StandardTypes.TIMESTAMP)
-    public static LocalDateTime decrypt_datetime(@SqlType(StandardTypes.VARCHAR) Slice value)
+    public static long decrypt_timestamp(@SqlType(StandardTypes.VARCHAR) Slice value)
     {
         return decryptDateTime(value.toStringUtf8());
     }
 
-    public static LocalDateTime decryptDateTime(@SqlType(StandardTypes.VARCHAR) String strToDecrypt)
+    public static long decryptDateTime(@SqlType(StandardTypes.VARCHAR) String strToDecrypt)
     {
         LocalDateTime dateTime;
         try {
-            dateTime = LocalDateTime.parse(decryptString(strToDecrypt));
+            Long epochSecond = Long.valueOf(decryptString(strToDecrypt));
+            dateTime = LocalDateTime.ofInstant(Instant.ofEpochSecond(epochSecond), ZoneId.systemDefault());
         }
         catch (Exception e) {
             throw new RuntimeException(e);
         }
-        return dateTime;
+        return dateTime.atZone(ZoneId.systemDefault()).toEpochSecond();
+    }
+
+    @ScalarFunction("encrypt_timestamp_with_format")
+    @Description("Encryption for timestamp data type")
+    @SqlType(StandardTypes.VARCHAR)
+    public static Slice encrypt_timestamp_with_format(@SqlNullable @SqlType(StandardTypes.TIMESTAMP) Long value, @SqlType(VARCHAR) Slice pattern)
+    {
+        return utf8Slice(encryptDateTimeWithFormat(value, pattern.toStringUtf8()));
+    }
+
+    public static String encryptDateTimeWithFormat(Long value, String pattern)
+    {
+        LocalDateTime time = LocalDateTime.ofInstant(Instant.ofEpochSecond(value), ZoneId.systemDefault());
+        String formattedTimeStamp = time.format(DateTimeFormatter.ofPattern(pattern));
+        return encryptString(formattedTimeStamp);
+    }
+
+    @ScalarFunction("decrypt_timestamp_with_format")
+    @Description("Decryption for timestamp data type")
+    @SqlType(StandardTypes.TIMESTAMP)
+    public static long decrypt_timestamp_with_format(@SqlType(StandardTypes.VARCHAR) Slice value, @SqlType(StandardTypes.VARCHAR) Slice pattern)
+    {
+        return decryptDateTimeWithFormat(value.toStringUtf8(), pattern.toStringUtf8());
+    }
+
+    public static long decryptDateTimeWithFormat(String strToDecrypt, String pattern)
+    {
+        LocalDateTime formattedDateTime;
+        try {
+            formattedDateTime = LocalDateTime.parse(decryptString(strToDecrypt), DateTimeFormatter.ofPattern(pattern));
+            System.out.println("formattedDateTime  :: " + formattedDateTime);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return formattedDateTime.atZone(ZoneId.systemDefault()).toEpochSecond();
     }
 }

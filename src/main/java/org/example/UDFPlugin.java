@@ -25,9 +25,6 @@ public class UDFPlugin
     @Override
     public Set<Class<?>> getFunctions()
     {
-//        return ImmutableSet.<Class<?>>builder()
-//                .add(MultiplyFunction.class)
-//                .build();
         Set<Class<?>> functions = new HashSet<>();
         functions.add(EncryptDecryptFunction.class);
         return Collections.unmodifiableSet(functions);
