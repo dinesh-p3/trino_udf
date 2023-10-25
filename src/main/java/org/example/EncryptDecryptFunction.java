@@ -36,15 +36,16 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
+import java.util.logging.Logger;
 
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.spi.type.StandardTypes.VARCHAR;
 
 public class EncryptDecryptFunction
 {
+    Logger logger;
     private EncryptDecryptFunction()
     {}
-
     private static final String SALT = "56c6b89e-00e1-4fef-8267-2b6837f0e721";
     private static final String SECRET_KEY = "469edc2c-8664-4473-aa15-3935af14fd0a"; //"testing";
     private static final String SECRET_KEY_ALGO = "PBKDF2WithHmacSHA512";
@@ -360,16 +361,19 @@ public class EncryptDecryptFunction
 
     @ScalarFunction("encrypt_timestamp_with_format")
     @Description("Encryption for timestamp data type")
-    @SqlType(StandardTypes.VARCHAR)
-    public static Slice encrypt_timestamp_with_format(@SqlNullable @SqlType(StandardTypes.TIMESTAMP) Long value, @SqlType(VARCHAR) Slice pattern)
+    @SqlType(VARCHAR)
+    public static Slice
+    encrypt_timestamp_with_format(@SqlNullable @SqlType(StandardTypes.TIMESTAMP) Long value)
     {
-        return utf8Slice(encryptDateTimeWithFormat(value, pattern.toStringUtf8()));
+        return utf8Slice(encryptDateTimeWithFormat(value));
     }
 
-    public static String encryptDateTimeWithFormat(Long value, String pattern)
+    public static String encryptDateTimeWithFormat(Long value)
     {
         LocalDateTime time = LocalDateTime.ofInstant(Instant.ofEpochSecond(value), ZoneId.systemDefault());
-        String formattedTimeStamp = time.format(DateTimeFormatter.ofPattern(pattern));
+        System.out.println("Error occurred while value encrypting :: " + time);
+        String formattedTimeStamp = time.format(DateTimeFormatter.ofPattern("yyyy-mm-dd hh:mm:ss.SSSSSS"));
+        System.out.println("Error occurred while value encrypting :: " + formattedTimeStamp);
         return encryptString(formattedTimeStamp);
     }
 
